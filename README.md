@@ -21,7 +21,7 @@
 <li><a href="#kernels"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内核</font></font></a>
 <ul dir="auto">
 <li><a href="#matrix-addition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵加法</font></font></a></li>
-<li><a href="/adam-maj/tiny-gpu/blob/master/tree/master?tab=readme-ov-file#matrix-multiplication"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵乘法</font></font></a></li>
+<li><a href="https://github.com/adam-maj/tiny-gpu/blob/master/tree/master?tab=readme-ov-file#matrix-multiplication"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵乘法</font></font></a></li>
 </ul>
 </li>
 <li><a href="#simulation"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">模拟</font></font></a></li>
@@ -50,8 +50,8 @@
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">了解此项目中阐述的基础知识后，您可以查看</font></font><a href="#advanced-functionality"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">高级功能部分，</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">以了解在生产级 GPU 中进行的一些最重要的优化（实施起来更具挑战性），从而提高性能。</font></font></p>
 <div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">建筑学</font></font></h1><a id="user-content-architecture" class="anchor" aria-label="永久链接：建筑" href="#architecture"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto">
-  <a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/gpu.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/gpu.png" alt="图形处理器" width="48%" style="max-width: 100%;"></a>
-  <a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/core.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/core.png" alt="核" width="48%" style="max-width: 100%;"></a>
+  <a target="_blank" rel="noopener noreferrer" href="https://github.com/adam-maj/tiny-gpu/blob/master/docs/images/gpu.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/gpu.png" alt="图形处理器" width="48%" style="max-width: 100%;"></a>
+  <a target="_blank" rel="noopener noreferrer" href="https://github.com/adam-maj/tiny-gpu/blob/master/docs/images/core.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/core.png" alt="核" width="48%" style="max-width: 100%;"></a>
 </p>
 <div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">图形处理器</font></font></h2><a id="user-content-gpu" class="anchor" aria-label="永久链接：GPU" href="#gpu"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu 被构建为一次执行一个内核。</font></font></p>
@@ -125,7 +125,7 @@
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">由于线程是并行处理的，tiny-gpu 假设所有线程在每条指令后“收敛”到同一个程序计数器 - 为了简单起见，这是一个天真的假设。</font></font></p>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在真实的 GPU 中，各个线程可以分支到不同的 PC，从而导致</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">分支发散</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，其中最初一起处理的一组线程必须分成单独的执行。</font></font></p>
 <div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">ISA</font></font></h1><a id="user-content-isa" class="anchor" aria-label="永久链接：ISA" href="#isa"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
-<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/isa.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/isa.png" alt="ISA" style="max-width: 100%;"></a></p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/adam-maj/tiny-gpu/blob/master/docs/images/isa.png"><img src="https://github.com/adam-maj/tiny-gpu/raw/master/docs/images/isa.png" alt="ISA" style="max-width: 100%;"></a></p>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu 实现了一个简单的 11 条指令 ISA，旨在启用简单的内核来进行概念验证，例如矩阵加法和矩阵乘法（本页下方的实现）。</font></font></p>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为此，它支持以下指令：</font></font></p>
 <ul dir="auto">
@@ -152,7 +152,7 @@
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为了简单和易于理解，控制流程这样布置。</font></font></p>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">实际上，可以压缩其中的几个步骤以优化处理时间，并且 GPU 还可以使用</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">流水线</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">来流式传输和协调内核资源上许多指令的执行，而无需等待先前的指令完成。</font></font></p>
 <div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">线</font></font></h3><a id="user-content-thread" class="anchor" aria-label="永久链接： 线程" href="#thread"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
-<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/thread.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/thread.png" alt="线" style="max-width: 100%;"></a></p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/adam-maj/tiny-gpu/blob/master/docs/images/thread.png"><img src="https://github.com/adam-maj/tiny-gpu/raw/master/docs/images/thread.png" alt="线" style="max-width: 100%;"></a></p>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个内核中的每个线程都遵循上述执行路径来对其专用寄存器文件中的数据执行计算。</font></font></p>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">这类似于标准 CPU 图，并且在功能上也非常相似。主要区别在于</font></font><code>%blockIdx</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">、</font></font><code>%blockDim</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和</font></font><code>%threadIdx</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">值位于每个线程的只读寄存器中，从而启用 SIMD 功能。</font></font></p>
 <div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内核</font></font></h1><a id="user-content-kernels" class="anchor" aria-label="永久链接：内核" href="#kernels"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
@@ -184,36 +184,7 @@
 <span class="pl-k">STR</span><span class="pl-en"> R7</span><span class="pl-s1">,</span><span class="pl-en"> R6</span><span class="pl-c">                     ; store C[i] in global memory</span>
 
 <span class="pl-k">RET</span><span class="pl-c">                            ; end of kernel</span></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 tooltipped-no-delay d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value=".threads 8
-.data 0 1 2 3 4 5 6 7          ; matrix A (1 x 8)
-.data 0 1 2 3 4 5 6 7          ; matrix B (1 x 8)
-
-MUL R0, %blockIdx, %blockDim
-ADD R0, R0, %threadIdx         ; i = blockIdx * blockDim + threadIdx
-
-CONST R1, #0                   ; baseA (matrix A base address)
-CONST R2, #8                   ; baseB (matrix B base address)
-CONST R3, #16                  ; baseC (matrix C base address)
-
-ADD R4, R1, R0                 ; addr(A[i]) = baseA + i
-LDR R4, R4                     ; load A[i] from global memory
-
-ADD R5, R2, R0                 ; addr(B[i]) = baseB + i
-LDR R5, R5                     ; load B[i] from global memory
-
-ADD R6, R4, R5                 ; C[i] = A[i] + B[i]
-
-ADD R7, R3, R0                 ; addr(C[i]) = baseC + i
-STR R7, R6                     ; store C[i] in global memory
-
-RET                            ; end of kernel" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+ 
   </div></div>
 <div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵乘法</font></font></h3><a id="user-content-matrix-multiplication" class="anchor" aria-label="永久链接：矩阵乘法" href="#matrix-multiplication"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵乘法内核将两个 2x2 矩阵相乘。它对相关行和列的点积执行元素级计算，并使用</font></font><code>CMP</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和</font></font><code>BRnzp</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">指令来演示线程内的分支（值得注意的是，所有分支都会收敛，因此该内核适用于当前的tiny-gpu 实现）。</font></font></p>
@@ -261,56 +232,7 @@ RET                            ; end of kernel" tabindex="0" role="button">
 <span class="pl-k">STR</span><span class="pl-en"> </span><span class="pl-v">R9</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R8</span><span class="pl-c">                     ; store C[i] in global memory</span>
 
 <span class="pl-k">RET</span><span class="pl-c">                            ; end of kernel</span></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 tooltipped-no-delay d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value=".threads 4
-.data 1 2 3 4                  ; matrix A (2 x 2)
-.data 1 2 3 4                  ; matrix B (2 x 2)
-
-MUL R0, %blockIdx, %blockDim
-ADD R0, R0, %threadIdx         ; i = blockIdx * blockDim + threadIdx
-
-CONST R1, #1                   ; increment
-CONST R2, #2                   ; N (matrix inner dimension)
-CONST R3, #0                   ; baseA (matrix A base address)
-CONST R4, #4                   ; baseB (matrix B base address)
-CONST R5, #8                   ; baseC (matrix C base address)
-
-DIV R6, R0, R2                 ; row = i // N
-MUL R7, R6, R2
-SUB R7, R0, R7                 ; col = i % N
-
-CONST R8, #0                   ; acc = 0
-CONST R9, #0                   ; k = 0
-
-LOOP:
-  MUL R10, R6, R2
-  ADD R10, R10, R9
-  ADD R10, R10, R3             ; addr(A[i]) = row * N + k + baseA
-  LDR R10, R10                 ; load A[i] from global memory
-
-  MUL R11, R9, R2
-  ADD R11, R11, R7
-  ADD R11, R11, R4             ; addr(B[i]) = k * N + col + baseB
-  LDR R11, R11                 ; load B[i] from global memory
-
-  MUL R12, R10, R11
-  ADD R8, R8, R12              ; acc = acc + A[i] * B[i]
-
-  ADD R9, R9, R1               ; increment k
-
-  CMP R9, R2
-  BRn LOOP                    ; loop while k < N
-
-ADD R9, R5, R0                 ; addr(C[i]) = baseC + i
-STR R9, R8                     ; store C[i] in global memory
-
-RET                            ; end of kernel" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+   
   </div></div>
 <div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">模拟</font></font></h1><a id="user-content-simulation" class="anchor" aria-label="永久链接：模拟" href="#simulation"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu 设置为模拟上述两个内核的执行。在模拟之前，您需要安装</font></font><a href="https://steveicarus.github.io/iverilog/usage/installation.html" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">iverilog</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和</font></font><a href="https://docs.cocotb.org/en/stable/install.html" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">cocotb</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></p>
@@ -318,7 +240,7 @@ RET                            ; end of kernel" tabindex="0" role="button">
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">执行模拟将输出一个日志文件，</font></font><code>test/logs</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">其中包含初始数据内存状态、内核的完整执行跟踪以及最终数据内存状态。</font></font></p>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果查看每个日志文件开头记录的初始数据内存状态，您应该看到计算的两个起始矩阵，并且在文件末尾的最终数据内存中，您还应该看到结果矩阵。</font></font></p>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">下面是执行跟踪的示例，显示每个周期每个内核中每个线程的执行情况，包括当前指令、PC、寄存器值、状态等。</font></font></p>
-<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/trace.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/trace.png" alt="执行跟踪" style="max-width: 100%;"></a></p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/adam-maj/tiny-gpu/blob/master/docs/images/trace.png"><img src="https://github.com/adam-maj/tiny-gpu/raw/master/docs/images/trace.png" alt="执行跟踪" style="max-width: 100%;"></a></p>
 <p dir="auto"><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">对于任何尝试运行模拟或使用此存储库的人，</font><font style="vertical-align: inherit;">如果您遇到任何问题，请随时在</font></font><a href="https://twitter.com/majmudaradam" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Twitter上向我发送 DM - 我希望您能够运行它！</font></font></a><font style="vertical-align: inherit;"></font></strong></p>
 <div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">先进的功能</font></font></h1><a id="user-content-advanced-functionality" class="anchor" aria-label="永久链接：高级功能" href="#advanced-functionality"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为了简单起见，现代 GPU 中实现了许多附加功能，这些功能大大提高了 tiny-gpu 省略的性能和功能。我们将在本节中讨论一些最关键的功能。</font></font></p>
