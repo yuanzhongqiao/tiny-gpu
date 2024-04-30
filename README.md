@@ -1,240 +1,190 @@
-# tiny-gpu
-
-A minimal GPU implementation in Verilog optimized for learning about how GPUs work from the ground up.
-
-Built with <15 files of fully documented Verilog, complete documentation on architecture & ISA, working matrix addition/multiplication kernels, and full support for kernel simulation & execution traces.
-
-### Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-  - [GPU](#gpu)
-  - [Memory](#memory)
-  - [Core](#core)
-- [ISA](#isa)
-- [Execution](#execution)
-  - [Core](#core-1)
-  - [Thread](#thread)
-- [Kernels](#kernels)
-  - [Matrix Addition](#matrix-addition)
-  - [Matrix Multiplication](/tree/master?tab=readme-ov-file#matrix-multiplication)
-- [Simulation](#simulation)
-- [Advanced Functionality](#advanced-functionality)
-- [Next Steps](#next-steps)
-
-# Overview
-
-If you want to learn how a CPU works all the way from architecture to control signals, there are many resources online to help you.
-
-GPUs are not the same.
-
-Because the GPU market is so competitive, low-level technical details for all modern architectures remain proprietary.
-
-While there are lots of resources to learn about GPU programming, there's almost nothing available to learn about how GPU's work at a hardware level.
-
-The best option is to go through open-source GPU implementations like [Miaow](https://github.com/VerticalResearchGroup/miaow) and [VeriGPU](https://github.com/hughperkins/VeriGPU/tree/main) and try to figure out what's going on. This is challenging since these projects aim at being feature complete and functional, so they're quite complex.
-
-This is why I built `tiny-gpu`!
-
-## What is tiny-gpu?
-
-> [!IMPORTANT]
->
-> **tiny-gpu** is a minimal GPU implementation optimized for learning about how GPUs work from the ground up.
->
-> Specifically, with the trend toward general-purpose GPUs (GPGPUs) and ML-accelerators like Google's TPU, tiny-gpu focuses on highlighting the general principles of all of these architectures, rather than on the details of graphics-specific hardware.
-
-With this motivation in mind, we can simplify GPUs by cutting out the majority of complexity involved with building a production-grade graphics card, and focus on the core elements that are critical to all of these modern hardwareaccelerators.
-
-This project is primarily focused on exploring:
-
-1. **Architecture** - What does the architecture of a GPU look like? What are the most important elements?
-2. **Parallelization** - How is the SIMD progamming model implemented in hardware?
-3. **Memory** - How does a GPU work around the constraints of limited memory bandwidth?
-
-After understanding the fundamentals laid out in this project, you can checkout the [advanced functionality section](#advanced-functionality) to understand some of the most important optimizations made in production grade GPUs (that are more challenging to implement) which improve performance.
-
-# Architecture
-
-<p float="left">
-  <img src="/docs/images/gpu.png" alt="GPU" width="48%">
-  <img src="/docs/images/core.png" alt="Core" width="48%">
+<div class="Box-sc-g0xbh4-0 bJMeLZ js-snippet-clipboard-copy-unpositioned" data-hpc="true"><article class="markdown-body entry-content container-lg" itemprop="text"><div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">小GPU</font></font></h1><a id="user-content-tiny-gpu" class="anchor" aria-label="永久链接：tiny-gpu" href="#tiny-gpu"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Verilog 中的最小 GPU 实现经过优化，可从头开始了解 GPU 的工作原理。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">使用 &lt;15 个完整记录的 Verilog 文件、有关架构和 ISA 的完整文档、工作矩阵加法/乘法内核以及对内核模拟和执行跟踪的全面支持来构建。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">目录</font></font></h3><a id="user-content-table-of-contents" class="anchor" aria-label="固定链接：目录" href="#table-of-contents"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><a href="#overview"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">概述</font></font></a></li>
+<li><a href="#architecture"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">建筑学</font></font></a>
+<ul dir="auto">
+<li><a href="#gpu"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">图形处理器</font></font></a></li>
+<li><a href="#memory"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">记忆</font></font></a></li>
+<li><a href="#core"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">核</font></font></a></li>
+</ul>
+</li>
+<li><a href="#isa"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">ISA</font></font></a></li>
+<li><a href="#execution"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">执行</font></font></a>
+<ul dir="auto">
+<li><a href="#core-1"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">核</font></font></a></li>
+<li><a href="#thread"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">线</font></font></a></li>
+</ul>
+</li>
+<li><a href="#kernels"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内核</font></font></a>
+<ul dir="auto">
+<li><a href="#matrix-addition"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵加法</font></font></a></li>
+<li><a href="/adam-maj/tiny-gpu/blob/master/tree/master?tab=readme-ov-file#matrix-multiplication"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵乘法</font></font></a></li>
+</ul>
+</li>
+<li><a href="#simulation"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">模拟</font></font></a></li>
+<li><a href="#advanced-functionality"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">先进的功能</font></font></a></li>
+<li><a href="#next-steps"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">下一步</font></font></a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">概述</font></font></h1><a id="user-content-overview" class="anchor" aria-label="永久链接：概述" href="#overview"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果您想了解 CPU 从架构到控制信号的整个工作原理，有许多在线资源可以为您提供帮助。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">GPU 不一样。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">由于 GPU 市场竞争如此激烈，所有现代架构的底层技术细节仍然是专有的。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">虽然有很多资源可以学习 GPU 编程，但几乎没有任何资源可以学习 GPU 在硬件级别的工作原理。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"></font><a href="https://github.com/VerticalResearchGroup/miaow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">最好的选择是浏览Miaow</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和</font></font><a href="https://github.com/hughperkins/VeriGPU/tree/main"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">VeriGPU</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">等开源 GPU 实现</font><font style="vertical-align: inherit;">，并尝试弄清楚发生了什么。这是具有挑战性的，因为这些项目的目标是功能完整和实用，因此它们非常复杂。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">这就是我建造的原因</font></font><code>tiny-gpu</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">！</font></font></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">什么是tinygpu？</font></font></h2><a id="user-content-what-is-tiny-gpu" class="anchor" aria-label="永久链接：什么是tiny-gpu？" href="#what-is-tiny-gpu"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-alert markdown-alert-important" dir="auto"><p class="markdown-alert-title" dir="auto"><svg class="octicon octicon-report mr-2" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H8.06l-2.573 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25Zm7 2.25v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">重要的</font></font></p>
+<p dir="auto"><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">是一个最小的 GPU 实现，经过优化，可以从头开始学习 GPU 的工作原理。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">具体来说，随着通用 GPU (GPGPU) 和 ML 加速器（如 Google 的 TPU）的发展趋势，tiny-gpu 专注于强调所有这些架构的一般原理，而不是图形特定硬件的细节。</font></font></p>
+</div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">考虑到这一动机，我们可以通过消除构建生产级显卡所涉及的大部分复杂性来简化 GPU，并专注于对所有这些现代硬件加速器至关重要的核心元素。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">该项目主要致力于探索：</font></font></p>
+<ol dir="auto">
+<li><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">架构</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- GPU 的架构是什么样的？最重要的元素是什么？</font></font></li>
+<li><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">并行化</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- SIMD 编程模型如何在硬件中实现？</font></font></li>
+<li><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内存</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- GPU 如何解决有限内存带宽的限制？</font></font></li>
+</ol>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">了解此项目中阐述的基础知识后，您可以查看</font></font><a href="#advanced-functionality"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">高级功能部分，</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">以了解在生产级 GPU 中进行的一些最重要的优化（实施起来更具挑战性），从而提高性能。</font></font></p>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">建筑学</font></font></h1><a id="user-content-architecture" class="anchor" aria-label="永久链接：建筑" href="#architecture"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">
+  <a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/gpu.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/gpu.png" alt="图形处理器" width="48%" style="max-width: 100%;"></a>
+  <a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/core.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/core.png" alt="核" width="48%" style="max-width: 100%;"></a>
 </p>
-
-## GPU
-
-tiny-gpu is built to execute a single kernel at a time.
-
-In order to launch a kernel, we need to do the following:
-
-1. Load global program memory with the kernel code
-2. Load data memory with the necessary data
-3. Specify the number of threads to launch in the device control register
-4. Launch the kernel by setting the start signal to high.
-
-The GPU itself consists of the following units:
-
-1. Device control register
-2. Dispatcher
-3. Variable number of compute cores
-4. Memory controllers for data memory & program memory
-5. Cache
-
-### Device Control Register
-
-The device control register usually stores metadata specifying how kernels should be executed on the GPU.
-
-In this case, the device control register just stores the `thread_count` - the total number of threads to launch for the active kernel.
-
-### Dispatcher
-
-Once a kernel is launched, the dispatcher is the unit that actually manages the distribution of threads to different compute cores.
-
-The dispatcher organizes threads into groups that can be executed in parallel on a single core called **blocks** and sends these blocks off to be processed by available cores.
-
-Once all blocks have been processed, the dispatcher reports back that the kernel execution is done.
-
-## Memory
-
-The GPU is built to interface with an external global memory. Here, data memory and program memory are separated out for simplicity.
-
-### Global Memory
-
-tiny-gpu data memory has the following specifications:
-
-- 8 bit addressability (256 total rows of data memory)
-- 8 bit data (stores values of <256 for each row)
-
-tiny-gpu program memory has the following specifications:
-
-- 8 bit addressability (256 rows of program memory)
-- 16 bit data (each instruction is 16 bits as specified by the ISA)
-
-### Memory Controllers
-
-Global memory has fixed read/write bandwidth, but there may be far more incoming requests across all cores to access data from memory than the external memory is actually able to handle.
-
-The memory controllers keep track of all the outgoing requests to memory from the compute cores, throttle requests based on actual external memory bandwidth, and relay responses from external memory back to the proper resources.
-
-Each memory controller has a fixed number of channels based on the bandwidth of global memory.
-
-### Cache (WIP)
-
-The same data is often requested from global memory by multiple cores. Constantly access global memory repeatedly is expensive, and since the data has already been fetched once, it would be more efficient to store it on device in SRAM to be retrieved much quicker on later requests.
-
-This is exactly what the cache is used for. Data retrieved from external memory is stored in cache and can be retrieved from there on later requests, freeing up memory bandwidth to be used for new data.
-
-## Core
-
-Each core has a number of compute resources, often built around a certain number of threads it can support. In order to maximize parallelization, these resources need to be managed optimally to maximize resource utilization.
-
-In this simplified GPU, each core processed one **block** at a time, and for each thread in a block, the core has a dedicated ALU, LSU, PC, and register file. Managing the execution of thread instructions on these resources is one of the most challening problems in GPUs.
-
-### Scheduler
-
-Each core has a single scheduler that manages the execution of threads.
-
-The tiny-gpu scheduler executes instructions for a single block to completion before picking up a new block, and it executes instructions for all threads in-sync and sequentially.
-
-In more advanced schedulers, techniques like **pipelining** are used to stream the execution of multiple instructions subsequent instructions to maximize resource utilization before previous instructions are fully complete. Additionally, **warp scheduling** can be use to execute multiple batches of threads within a block in parallel.
-
-The main constraint the scheduler has to work around is the latency associated with loading & storing data from global memory. While most instructions can be executed synchronously, these load-store operations are asynchronous, meaning the rest of the instruction execution has to be built around these long wait times.
-
-### Fetcher
-
-Asynchronously fetches the instruction at the current program counter from program memory (most should actually be fetching from cache after a single block is executed).
-
-### Decoder
-
-Decodes the fetched instruction into control signals for thread execution.
-
-### Register Files
-
-Each thread has it's own dedicated set of register files. The register files hold the data that each thread is performing computations on, which enables the same-instruction multiple-data (SIMD) pattern.
-
-Importantly, each register file contains a few read-only registers holding data about the current block & thread being executed locally, enabling kernels to be executed with different data based on the local thread id.
-
-### ALUs
-
-Dedicated arithmetic-logic unit for each thread to perform computations. Handles the `ADD`, `SUB`, `MUL`, `DIV` arithmetic instructions.
-
-Also handles the `CMP` comparison instruction which actually outputs whether the result of the difference between two registers is negative, zero or positive - and stores the result in the `NZP` register in the PC unit.
-
-### LSUs
-
-Dedicated load-store unit for each thread to access global data memory.
-
-Handles the `LDR` & `STR` instructions - and handles async wait times for memory requests to be processed and relayed by the memory controller.
-
-### PCs
-
-Dedicated program-counter for each unit to determine the next instructions to execute on each thread.
-
-By default, the PC increments by 1 after every instruction.
-
-With the `BRnzp` instruction, the NZP register checks to see if the NZP register (set by a previous `CMP` instruction) matches some case - and if it does, it will branch to a specific line of program memory. _This is how loops and conditionals are implemented._
-
-Since threads are processed in parallel, tiny-gpu assumes that all threads "converge" to the same program counter after each instruction - which is a naive assumption for the sake of simplicity.
-
-In real GPUs, individual threads can branch to different PCs, causing **branch divergence** where a group of threads threads initially being processed together has to split out into separate execution.
-
-# ISA
-
-![ISA](/docs/images/isa.png)
-
-tiny-gpu implements a simple 11 instruction ISA built to enable simple kernels for proof-of-concept like matrix addition & matrix multiplication (implementation further down on this page).
-
-For these purposes, it supports the following instructions:
-
-- `BRnzp` - Branch instruction to jump to another line of program memory if the NZP register matches the `nzp` condition in the instruction.
-- `CMP` - Compare the value of two registers and store the result in the NZP register to use for a later `BRnzp` instruction.
-- `ADD`, `SUB`, `MUL`, `DIV` - Basic arithmetic operations to enable tensor math.
-- `LDR` - Load data from global memory.
-- `STR` - Store data into global memory.
-- `CONST` - Load a constant value into a register.
-- `RET` - Signal that the current thread has reached the end of execution.
-
-Each register is specified by 4 bits, meaning that there are 16 total registers. The first 13 register `R0` - `R12` are free registers that support read/write. The last 3 registers are special read-only registers used to supply the `%blockIdx`, `%blockDim`, and `%threadIdx` critical to SIMD.
-
-# Execution
-
-### Core
-
-Each core follows the following control flow going through different stages to execute each instruction:
-
-1. `FETCH` - Fetch the next instruction at current program counter from program memory.
-2. `DECODE` - Decode the instruction into control signals.
-3. `REQUEST` - Request data from global memory if necessary (if `LDR` or `STR` instruction).
-4. `WAIT` - Wait for data from global memory if applicable.
-5. `EXECUTE` - Execute any computations on data.
-6. `UPDATE` - Update register files and NZP register.
-
-The control flow is laid out like this for the sake of simplicity and understandability.
-
-In practice, several of these steps could be compressed to be optimize processing times, and the GPU could also use **pipelining** to stream and coordinate the execution of many instructions on a cores resources without waiting for previous instructions to finish.
-
-### Thread
-
-![Thread](/docs/images/thread.png)
-
-Each thread within each core follows the above execution path to perform computations on the data in it's dedicated register file.
-
-This resembles a standard CPU diagram, and is quite similar in functionality as well. The main difference is that the `%blockIdx`, `%blockDim`, and `%threadIdx` values lie in the read-only registers for each thread, enabling SIMD functionality.
-
-# Kernels
-
-I wrote a matrix addition and matrix multiplication kernel using my ISA as a proof of concept to demonstrate SIMD programming and execution with my GPU. The test files in this repository are capable of fully simulating the execution of these kernels on the GPU, producing data memory states and a complete execution trace.
-
-### Matrix Addition
-
-This matrix addition kernel adds two 1 x 8 matrices by performing 8 element wise additions in separate threads.
-
-This demonstration makes use of the `%blockIdx`, `%blockDim`, and `%threadIdx` registers to show SIMD programming on this GPU. It also uses the `LDR` and `STR` instructions which require async memory management.
-
-`matadd.asm`
-
-```asm
-.threads 8
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">图形处理器</font></font></h2><a id="user-content-gpu" class="anchor" aria-label="永久链接：GPU" href="#gpu"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu 被构建为一次执行一个内核。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为了启动内核，我们需要执行以下操作：</font></font></p>
+<ol dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">使用内核代码加载全局程序内存</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">将必要的数据加载到数据存储器中</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">指定要在设备控制寄存器中启动的线程数</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">通过将启动信号设置为高来启动内核。</font></font></li>
+</ol>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">GPU本身由以下单元组成：</font></font></p>
+<ol dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">设备控制寄存器</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">调度员</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">计算核心数量可变</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">用于数据存储器和程序存储器的存储器控&ZeroWidthSpace;&ZeroWidthSpace;制器</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">缓存</font></font></li>
+</ol>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">设备控制寄存器</font></font></h3><a id="user-content-device-control-register" class="anchor" aria-label="永久链接：设备控制寄存器" href="#device-control-register"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">设备控制寄存器通常存储指定内核应如何在 GPU 上执行的元数据。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在这种情况下，设备控制寄存器仅存储</font></font><code>thread_count</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为活动内核启动的线程总数。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">调度员</font></font></h3><a id="user-content-dispatcher" class="anchor" aria-label="永久链接：调度员" href="#dispatcher"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">一旦内核启动，调度程序就是实际管理将线程分配到不同计算核心的单元。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">调度程序将线程组织成可以在称为块的</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">单个核心上并行执行的组</font><font style="vertical-align: inherit;">，并将这些块发送出去以供可用核心处理。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">一旦处理完所有块，调度程序就会报告内核执行已完成。</font></font></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">记忆</font></font></h2><a id="user-content-memory" class="anchor" aria-label="永久链接：内存" href="#memory"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">GPU 旨在与外部全局存储器连接。这里，为了简单起见，数据存储器和程序存储器被分开。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">全局记忆</font></font></h3><a id="user-content-global-memory" class="anchor" aria-label="永久链接：全局内存" href="#global-memory"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu数据存储器有以下规格：</font></font></p>
+<ul dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">8 位寻址能力（数据存储器总共 256 行）</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">8 位数据（每行存储 &lt;256 的值）</font></font></li>
+</ul>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu程序存储器有以下规格：</font></font></p>
+<ul dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">8 位寻址能力（256 行程序存储器）</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">16位数据（ISA规定每条指令为16位）</font></font></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内存控制器</font></font></h3><a id="user-content-memory-controllers" class="anchor" aria-label="永久链接：内存控制器" href="#memory-controllers"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">全局内存具有固定的读/写带宽，但所有内核之间访问内存数据的传入请求可能比外部内存实际能够处理的要多得多。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内存控制器跟踪从计算核心到内存的所有传出请求，根据实际外部内存带宽限制请求，并将响应从外部内存转发回适当的资源。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个内存控制器具有基于全局内存带宽的固定数量的通道。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">缓存（开发中）</font></font></h3><a id="user-content-cache-wip" class="anchor" aria-label="永久链接：缓存（WIP）" href="#cache-wip"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">多个核心经常从全局内存请求相同的数据。不断地重复访问全局内存的成本很高，而且由于数据已经被提取一次，因此将其存储在设备上的 SRAM 中会更有效，以便在以后的请求中更快地检索。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">这正是缓存的用途。从外部存储器检索的数据存储在缓存中，并且可以在以后的请求时从那里检索，从而释放内存带宽以用于新数据。</font></font></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">核</font></font></h2><a id="user-content-core" class="anchor" aria-label="永久链接：核心" href="#core"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个核心都有大量计算资源，通常围绕它可以支持的一定数量的线程构建。为了最大化并行化，需要对这些资源进行最佳管理，以最大化资源利用率。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在这个简化的 GPU 中，每个核心</font><font style="vertical-align: inherit;">一次处理一个</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">块</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，对于块中的每个线程，核心都有一个专用的 ALU、LSU、PC 和寄存器文件。管理这些资源上线程指令的执行是 GPU 中最具挑战性的问题之一。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">调度程序</font></font></h3><a id="user-content-scheduler" class="anchor" aria-label="永久链接：调度程序" href="#scheduler"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个核心都有一个调度程序来管理线程的执行。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu 调度程序在拾取新块之前执行单个块的指令直至完成，并且它同步且顺序地执行所有线程的指令。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在更高级的调度程序中，使用诸如流水线之</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">类的技术</font><font style="vertical-align: inherit;">来流式执行多个指令和后续指令，以便在前面的指令完全完成之前最大化资源利用率。此外，</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">warp 调度</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">可用于并行执行块内的多批线程。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">调度程序必须解决的主要约束是与从全局内存加载和存储数据相关的延迟。虽然大多数指令可以同步执行，但这些加载存储操作是异步的，这意味着指令执行的其余部分必须围绕这些漫长的等待时间构建。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">抓取器</font></font></h3><a id="user-content-fetcher" class="anchor" aria-label="永久链接： 获取器" href="#fetcher"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">从程序存储器中异步获取当前程序计数器处的指令（实际上大多数应该是在执行单个块后从缓存中获取）。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">解码器</font></font></h3><a id="user-content-decoder" class="anchor" aria-label="永久链接：解码器" href="#decoder"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">将获取的指令解码为线程执行的控制信号。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">注册文件</font></font></h3><a id="user-content-register-files" class="anchor" aria-label="永久链接：注册文件" href="#register-files"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个线程都有它自己的专用寄存器文件集。寄存器文件保存每个线程正在执行计算的数据，从而实现同一指令多数据 (SIMD) 模式。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">重要的是，每个寄存器文件包含一些只读寄存器，保存有关本地执行的当前块和线程的数据，使内核能够根据本地线程 ID 使用不同的数据执行。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">ALU</font></font></h3><a id="user-content-alus" class="anchor" aria-label="永久链接：ALU" href="#alus"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个线程都有专用的算术逻辑单元来执行计算。处理</font></font><code>ADD</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">、</font></font><code>SUB</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">、</font></font><code>MUL</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">、</font></font><code>DIV</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">算术指令。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">还处理</font></font><code>CMP</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">比较指令，该指令实际输出两个寄存器之间的差异结果是负、零还是正 - 并将结果存储</font></font><code>NZP</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在 PC 单元的寄存器中。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">路易斯安那州立大学</font></font></h3><a id="user-content-lsus" class="anchor" aria-label="永久链接：路易斯安那州立大学" href="#lsus"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个线程都有专用的加载-存储单元来访问全局数据内存。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">处理</font></font><code>LDR</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">&amp;</font></font><code>STR</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">指令 - 并处理由内存控制器处理和中继的内存请求的异步等待时间。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">件</font></font></h3><a id="user-content-pcs" class="anchor" aria-label="永久链接：个人电脑" href="#pcs"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个单元的专用程序计数器确定要在每个线程上执行的下一条指令。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">默认情况下，每条指令后 PC 都会加 1。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">使用该</font></font><code>BRnzp</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">指令，NZP 寄存器检查 NZP 寄存器（由前一条</font></font><code>CMP</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">指令设置）是否匹配某种情况 - 如果匹配，它将分支到程序存储器的特定行。</font></font><em><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">这就是循环和条件的实现方式。</font></font></em></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">由于线程是并行处理的，tiny-gpu 假设所有线程在每条指令后“收敛”到同一个程序计数器 - 为了简单起见，这是一个天真的假设。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在真实的 GPU 中，各个线程可以分支到不同的 PC，从而导致</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">分支发散</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，其中最初一起处理的一组线程必须分成单独的执行。</font></font></p>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">ISA</font></font></h1><a id="user-content-isa" class="anchor" aria-label="永久链接：ISA" href="#isa"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/isa.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/isa.png" alt="ISA" style="max-width: 100%;"></a></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu 实现了一个简单的 11 条指令 ISA，旨在启用简单的内核来进行概念验证，例如矩阵加法和矩阵乘法（本页下方的实现）。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为此，它支持以下指令：</font></font></p>
+<ul dir="auto">
+<li><code>BRnzp</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 如果 NZP 寄存器与</font></font><code>nzp</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">指令中的条件匹配，则跳转指令跳转到程序存储器的另一行。</font></font></li>
+<li><code>CMP</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 比较两个寄存器的值并将结果存储在 NZP 寄存器中以供后续</font></font><code>BRnzp</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">指令使用。</font></font></li>
+<li><code>ADD</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">, </font></font><code>SUB</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">, </font></font><code>MUL</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">, </font></font><code>DIV</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 用于启用张量数学的基本算术运算。</font></font></li>
+<li><code>LDR</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 从全局内存加载数据。</font></font></li>
+<li><code>STR</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 将数据存储到全局内存中。</font></font></li>
+<li><code>CONST</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 将常数值加载到寄存器中。</font></font></li>
+<li><code>RET</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 表示当前线程已到达执行结束的信号。</font></font></li>
+</ul>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个寄存器由 4 位指定，这意味着总共有 16 个寄存器。前 13 个寄存器</font></font><code>R0</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">-</font></font><code>R12</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">是支持读/写的免费寄存器。最后 3 个寄存器是特殊的只读寄存器，用于提供对 SIMD 至关重要的</font></font><code>%blockIdx</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">、</font></font><code>%blockDim</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">、 和</font></font><code>%threadIdx</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></p>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">执行</font></font></h1><a id="user-content-execution" class="anchor" aria-label="永久链接：执行" href="#execution"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">核</font></font></h3><a id="user-content-core-1" class="anchor" aria-label="永久链接：核心" href="#core-1"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个内核遵循以下控制流程，经过不同阶段来执行每条指令：</font></font></p>
+<ol dir="auto">
+<li><code>FETCH</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 从程序存储器中获取当前程序计数器的下一条指令。</font></font></li>
+<li><code>DECODE</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 将指令解码为控制信号。</font></font></li>
+<li><code>REQUEST</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 如有必要，从全局存储器请求数据（if</font></font><code>LDR</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">或</font></font><code>STR</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">指令）。</font></font></li>
+<li><code>WAIT</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 等待全局内存中的数据（如果适用）。</font></font></li>
+<li><code>EXECUTE</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 对数据执行任何计算。</font></font></li>
+<li><code>UPDATE</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">- 更新寄存器文件和NZP寄存器。</font></font></li>
+</ol>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为了简单和易于理解，控制流程这样布置。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">实际上，可以压缩其中的几个步骤以优化处理时间，并且 GPU 还可以使用</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">流水线</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">来流式传输和协调内核资源上许多指令的执行，而无需等待先前的指令完成。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">线</font></font></h3><a id="user-content-thread" class="anchor" aria-label="永久链接： 线程" href="#thread"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/thread.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/thread.png" alt="线" style="max-width: 100%;"></a></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个内核中的每个线程都遵循上述执行路径来对其专用寄存器文件中的数据执行计算。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">这类似于标准 CPU 图，并且在功能上也非常相似。主要区别在于</font></font><code>%blockIdx</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">、</font></font><code>%blockDim</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和</font></font><code>%threadIdx</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">值位于每个线程的只读寄存器中，从而启用 SIMD 功能。</font></font></p>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内核</font></font></h1><a id="user-content-kernels" class="anchor" aria-label="永久链接：内核" href="#kernels"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">我使用 ISA 编写了一个矩阵加法和矩阵乘法内核作为概念证明，以演示使用 GPU 进行 SIMD 编程和执行。该存储库中的测试文件能够完全模拟这些内核在 GPU 上的执行，生成数据内存状态和完整的执行跟踪。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵加法</font></font></h3><a id="user-content-matrix-addition" class="anchor" aria-label="永久链接：矩阵加法" href="#matrix-addition"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">该矩阵加法内核通过在单独的线程中执行 8 个元素明智的加法来添加两个 1 x 8 矩阵。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">该演示使用</font></font><code>%blockIdx</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">、</font></font><code>%blockDim</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和</font></font><code>%threadIdx</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">寄存器来展示该 GPU 上的 SIMD 编程。它还使用</font><font style="vertical-align: inherit;">需要异步内存管理的</font></font><code>LDR</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和指令。</font></font><code>STR</code><font style="vertical-align: inherit;"></font></p>
+<p dir="auto"><code>matadd.asm</code></p>
+<div class="highlight highlight-source-assembly notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-en">.threads </span><span class="pl-c1">8</span>
+<span class="pl-en">.data </span><span class="pl-c1">0</span><span class="pl-en"> </span><span class="pl-c1">1</span><span class="pl-en"> </span><span class="pl-c1">2</span><span class="pl-en"> </span><span class="pl-c1">3</span><span class="pl-en"> </span><span class="pl-c1">4</span><span class="pl-en"> </span><span class="pl-c1">5</span><span class="pl-en"> </span><span class="pl-c1">6</span><span class="pl-en"> </span><span class="pl-c1">7</span><span class="pl-c">          ; matrix A (1 x 8)</span>
+<span class="pl-en">.data </span><span class="pl-c1">0</span><span class="pl-en"> </span><span class="pl-c1">1</span><span class="pl-en"> </span><span class="pl-c1">2</span><span class="pl-en"> </span><span class="pl-c1">3</span><span class="pl-en"> </span><span class="pl-c1">4</span><span class="pl-en"> </span><span class="pl-c1">5</span><span class="pl-en"> </span><span class="pl-c1">6</span><span class="pl-en"> </span><span class="pl-c1">7</span><span class="pl-c">          ; matrix B (1 x 8)</span>
+
+<span class="pl-k">MUL</span><span class="pl-en"> R0</span><span class="pl-s1">,</span><span class="pl-en"> %blockIdx</span><span class="pl-s1">,</span><span class="pl-en"> %blockDim</span>
+<span class="pl-k">ADD</span><span class="pl-en"> R0</span><span class="pl-s1">,</span><span class="pl-en"> R0</span><span class="pl-s1">,</span><span class="pl-en"> %threadIdx</span><span class="pl-c">         ; i = blockIdx * blockDim + threadIdx</span>
+
+<span class="pl-en">CONST R1</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">0</span><span class="pl-c">                   ; baseA (matrix A base address)</span>
+<span class="pl-en">CONST R2</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">8</span><span class="pl-c">                   ; baseB (matrix B base address)</span>
+<span class="pl-en">CONST R3</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">16</span><span class="pl-c">                  ; baseC (matrix C base address)</span>
+
+<span class="pl-k">ADD</span><span class="pl-en"> R4</span><span class="pl-s1">,</span><span class="pl-en"> R1</span><span class="pl-s1">,</span><span class="pl-en"> R0</span><span class="pl-c">                 ; addr(A[i]) = baseA + i</span>
+<span class="pl-en">LDR R4</span><span class="pl-s1">,</span><span class="pl-en"> R4</span><span class="pl-c">                     ; load A[i] from global memory</span>
+
+<span class="pl-k">ADD</span><span class="pl-en"> R5</span><span class="pl-s1">,</span><span class="pl-en"> R2</span><span class="pl-s1">,</span><span class="pl-en"> R0</span><span class="pl-c">                 ; addr(B[i]) = baseB + i</span>
+<span class="pl-en">LDR R5</span><span class="pl-s1">,</span><span class="pl-en"> R5</span><span class="pl-c">                     ; load B[i] from global memory</span>
+
+<span class="pl-k">ADD</span><span class="pl-en"> R6</span><span class="pl-s1">,</span><span class="pl-en"> R4</span><span class="pl-s1">,</span><span class="pl-en"> R5</span><span class="pl-c">                 ; C[i] = A[i] + B[i]</span>
+
+<span class="pl-k">ADD</span><span class="pl-en"> R7</span><span class="pl-s1">,</span><span class="pl-en"> R3</span><span class="pl-s1">,</span><span class="pl-en"> R0</span><span class="pl-c">                 ; addr(C[i]) = baseC + i</span>
+<span class="pl-k">STR</span><span class="pl-en"> R7</span><span class="pl-s1">,</span><span class="pl-en"> R6</span><span class="pl-c">                     ; store C[i] in global memory</span>
+
+<span class="pl-k">RET</span><span class="pl-c">                            ; end of kernel</span></pre><div class="zeroclipboard-container">
+    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 tooltipped-no-delay d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value=".threads 8
 .data 0 1 2 3 4 5 6 7          ; matrix A (1 x 8)
 .data 0 1 2 3 4 5 6 7          ; matrix B (1 x 8)
 
@@ -256,17 +206,62 @@ ADD R6, R4, R5                 ; C[i] = A[i] + B[i]
 ADD R7, R3, R0                 ; addr(C[i]) = baseC + i
 STR R7, R6                     ; store C[i] in global memory
 
-RET                            ; end of kernel
-```
+RET                            ; end of kernel" tabindex="0" role="button">
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
+    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
+    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+</svg>
+    </clipboard-copy>
+  </div></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵乘法</font></font></h3><a id="user-content-matrix-multiplication" class="anchor" aria-label="永久链接：矩阵乘法" href="#matrix-multiplication"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">矩阵乘法内核将两个 2x2 矩阵相乘。它对相关行和列的点积执行元素级计算，并使用</font></font><code>CMP</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和</font></font><code>BRnzp</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">指令来演示线程内的分支（值得注意的是，所有分支都会收敛，因此该内核适用于当前的tiny-gpu 实现）。</font></font></p>
+<p dir="auto"><code>matmul.asm</code></p>
+<div class="highlight highlight-source-assembly notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-en">.threads </span><span class="pl-c1">4</span>
+<span class="pl-en">.data </span><span class="pl-c1">1</span><span class="pl-en"> </span><span class="pl-c1">2</span><span class="pl-en"> </span><span class="pl-c1">3</span><span class="pl-en"> </span><span class="pl-c1">4</span><span class="pl-c">                  ; matrix A (2 x 2)</span>
+<span class="pl-en">.data </span><span class="pl-c1">1</span><span class="pl-en"> </span><span class="pl-c1">2</span><span class="pl-en"> </span><span class="pl-c1">3</span><span class="pl-en"> </span><span class="pl-c1">4</span><span class="pl-c">                  ; matrix B (2 x 2)</span>
 
-### Matrix Multiplication
+<span class="pl-k">MUL</span><span class="pl-en"> R0</span><span class="pl-s1">,</span><span class="pl-en"> %blockIdx</span><span class="pl-s1">,</span><span class="pl-en"> %blockDim</span>
+<span class="pl-k">ADD</span><span class="pl-en"> R0</span><span class="pl-s1">,</span><span class="pl-en"> R0</span><span class="pl-s1">,</span><span class="pl-en"> %threadIdx</span><span class="pl-c">         ; i = blockIdx * blockDim + threadIdx</span>
 
-The matrix multiplication kernel multiplies two 2x2 matrices. It performs element wise calculation of the dot product of the relevant row and column and uses the `CMP` and `BRnzp` instructions to demonstrate branching within the threads (notably, all branches converge so this kernel works on the current tiny-gpu implementation).
+<span class="pl-en">CONST R1</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">1</span><span class="pl-c">                   ; increment</span>
+<span class="pl-en">CONST R2</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">2</span><span class="pl-c">                   ; N (matrix inner dimension)</span>
+<span class="pl-en">CONST R3</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">0</span><span class="pl-c">                   ; baseA (matrix A base address)</span>
+<span class="pl-en">CONST R4</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">4</span><span class="pl-c">                   ; baseB (matrix B base address)</span>
+<span class="pl-en">CONST R5</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">8</span><span class="pl-c">                   ; baseC (matrix C base address)</span>
 
-`matmul.asm`
+<span class="pl-k">DIV</span><span class="pl-en"> R6</span><span class="pl-s1">,</span><span class="pl-en"> R0</span><span class="pl-s1">,</span><span class="pl-en"> R2</span><span class="pl-c">                 ; row = i // N</span>
+<span class="pl-k">MUL</span><span class="pl-en"> R7</span><span class="pl-s1">,</span><span class="pl-en"> R6</span><span class="pl-s1">,</span><span class="pl-en"> R2</span>
+<span class="pl-k">SUB</span><span class="pl-en"> R7</span><span class="pl-s1">,</span><span class="pl-en"> R0</span><span class="pl-s1">,</span><span class="pl-en"> R7</span><span class="pl-c">                 ; col = i % N</span>
 
-```asm
-.threads 4
+<span class="pl-en">CONST </span><span class="pl-v">R8</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">0</span><span class="pl-c">                   ; acc = 0</span>
+<span class="pl-en">CONST </span><span class="pl-v">R9</span><span class="pl-s1">,</span><span class="pl-en"> #</span><span class="pl-c1">0</span><span class="pl-c">                   ; k = 0</span>
+
+<span class="pl-k">LOOP</span><span class="pl-en">:</span>
+<span class="pl-en">  </span><span class="pl-k">MUL</span><span class="pl-en"> </span><span class="pl-v">R10</span><span class="pl-s1">,</span><span class="pl-en"> R6</span><span class="pl-s1">,</span><span class="pl-en"> R2</span>
+<span class="pl-en">  </span><span class="pl-k">ADD</span><span class="pl-en"> </span><span class="pl-v">R10</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R10</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R9</span>
+<span class="pl-en">  </span><span class="pl-k">ADD</span><span class="pl-en"> </span><span class="pl-v">R10</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R10</span><span class="pl-s1">,</span><span class="pl-en"> R3</span><span class="pl-c">             ; addr(A[i]) = row * N + k + baseA</span>
+<span class="pl-en">  LDR </span><span class="pl-v">R10</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R10</span><span class="pl-c">                 ; load A[i] from global memory</span>
+
+<span class="pl-en">  </span><span class="pl-k">MUL</span><span class="pl-en"> </span><span class="pl-v">R11</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R9</span><span class="pl-s1">,</span><span class="pl-en"> R2</span>
+<span class="pl-en">  </span><span class="pl-k">ADD</span><span class="pl-en"> </span><span class="pl-v">R11</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R11</span><span class="pl-s1">,</span><span class="pl-en"> R7</span>
+<span class="pl-en">  </span><span class="pl-k">ADD</span><span class="pl-en"> </span><span class="pl-v">R11</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R11</span><span class="pl-s1">,</span><span class="pl-en"> R4</span><span class="pl-c">             ; addr(B[i]) = k * N + col + baseB</span>
+<span class="pl-en">  LDR </span><span class="pl-v">R11</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R11</span><span class="pl-c">                 ; load B[i] from global memory</span>
+
+<span class="pl-en">  </span><span class="pl-k">MUL</span><span class="pl-en"> </span><span class="pl-v">R12</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R10</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R11</span>
+<span class="pl-en">  </span><span class="pl-k">ADD</span><span class="pl-en"> </span><span class="pl-v">R8</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R8</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R12</span><span class="pl-c">              ; acc = acc + A[i] * B[i]</span>
+
+<span class="pl-en">  </span><span class="pl-k">ADD</span><span class="pl-en"> </span><span class="pl-v">R9</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R9</span><span class="pl-s1">,</span><span class="pl-en"> R1</span><span class="pl-c">               ; increment k</span>
+
+<span class="pl-en">  </span><span class="pl-k">CMP</span><span class="pl-en"> </span><span class="pl-v">R9</span><span class="pl-s1">,</span><span class="pl-en"> R2</span>
+<span class="pl-en">  BRn </span><span class="pl-k">LOOP</span><span class="pl-c">                    ; loop while k &lt; N</span>
+
+<span class="pl-k">ADD</span><span class="pl-en"> </span><span class="pl-v">R9</span><span class="pl-s1">,</span><span class="pl-en"> R5</span><span class="pl-s1">,</span><span class="pl-en"> R0</span><span class="pl-c">                 ; addr(C[i]) = baseC + i</span>
+<span class="pl-k">STR</span><span class="pl-en"> </span><span class="pl-v">R9</span><span class="pl-s1">,</span><span class="pl-en"> </span><span class="pl-v">R8</span><span class="pl-c">                     ; store C[i] in global memory</span>
+
+<span class="pl-k">RET</span><span class="pl-c">                            ; end of kernel</span></pre><div class="zeroclipboard-container">
+    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 tooltipped-no-delay d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value=".threads 4
 .data 1 2 3 4                  ; matrix A (2 x 2)
 .data 1 2 3 4                  ; matrix B (2 x 2)
 
@@ -308,81 +303,56 @@ LOOP:
 ADD R9, R5, R0                 ; addr(C[i]) = baseC + i
 STR R9, R8                     ; store C[i] in global memory
 
-RET                            ; end of kernel
-```
-
-# Simulation
-
-tiny-gpu is setup to simulate the execution of both of the above kernels. Before simulating, you'll need to install [iverilog](https://steveicarus.github.io/iverilog/usage/installation.html) and [cocotb](https://docs.cocotb.org/en/stable/install.html).
-
-Once you've installed the pre-requisites, you can run the kernel simulations with `make test_matadd` and `make test_matmul`.
-
-Executing the simulations will output a log file in `test/logs` with the initial data memory state, complete execution trace of the kernel, and final data memory state.
-
-If you look at the initial data memory state logged at the start of the logfile for each, you should see the two start matrices for the calculation, and in the final data memory at the end of the file you should also see the resultant matrix.
-
-Below is a sample of the execution traces, showing on each cycle the execution of every thread within every core, including the current instruction, PC, register values, states, etc.
-
-![execution trace](docs/images/trace.png)
-
-**For anyone trying to run the simulation or play with this repo, please feel free to DM me on [twitter](https://twitter.com/majmudaradam) if you run into any issues - I want you to get this running!**
-
-# Advanced Functionality
-
-For the sake of simplicity, there were many additional features implemented in modern GPUs that heavily improve performance & functionality that tiny-gpu omits. We'll discuss some of those most critical features in this section.
-
-### Multi-layered Cache & Shared Memory
-
-In modern GPUs, multiple different levels of caches are used to minimize the amount of data that needs to get accessed from global memory. tiny-gpu implements only one cache layer between individual compute units requesting memory and the memory controllers which stores recent cached data.
-
-Implementing multi-layered caches allows frequently accessed data to be cached more locally to where it's being used (with some caches within individual compute cores), minimizing load times for this data.
-
-Different caching algorithms are used to maximize cache-hits - this is a critical dimension that can be improved on to optimize memory access.
-
-Additionally, GPUs often use **shared memory** for threads within the same block to access a single memory space that can be used to share results with other threads.
-
-### Memory Coalescing
-
-Another critical memory optimization used by GPUs is **memory coalescing.** Multiple threads running in parallel often need to access sequential addresses in memory (for example, a group of threads accessing neighboring elements in a matrix) - but each of these memory requests is put in separately.
-
-Memory coalescing is used to analyzing queued memory requests and combine neighboring requests into a single transaction, minimizing time spent on addressing, and making all the requests together.
-
-### Pipelining
-
-In the control flow for tiny-gpu, cores wait for one instruction to be executed on a group of threads before starting execution of the next instruction.
-
-Modern GPUs use **pipelining** to stream execution of multiple sequential instructions at once while ensuring that instructions with dependencies on each other still get executed sequentially.
-
-This helps to maximize resource utilization within cores as resources are not sitting idle while waiting (ex: during async memory requests).
-
-### Warp Scheduling
-
-Another strategy used to maximize resource utilization on course is **warp scheduling.** This approach involves breaking up blocks into individual batches of theads that can be executed together.
-
-Multiple warps can be executed on a single core simultaneously by executing instructions from one warp while another warp is waiting. This is similar to pipelining, but dealing with instructions from different threads.
-
-### Branch Divergence
-
-tiny-gpu assumes that all threads in a single batch end up on the same PC after each instruction, meaning that threads can be executed in parallel for their entire lifetime.
-
-In reality, individual threads could diverge from each other and branch to different lines based on their data. With different PCs, these threads would need to split into separate lines of execution, which requires managing diverging threads & paying attention to when threads converge again.
-
-### Synchronization & Barriers
-
-Another core functionality of modern GPUs is the ability to set **barriers** so that groups of threads in a block can synchronize and wait until all other threads in the same block have gotten to a certain point before continuing execution.
-
-This is useful for cases where threads need to exchange shared data with each other so they can ensure that the data has been fully processed.
-
-# Next Steps
-
-Updates I want to make in the future to improve the design, anyone else is welcome to contribute as well:
-
-- [ ] Add a simple cache for instructions
-- [ ] Build an adapter to use GPU with Tiny Tapeout 7
-- [ ] Add basic branch divergence
-- [ ] Add basic memory coalescing
-- [ ] Add basic pipelining
-- [ ] Optimize control flow and use of registers to improve cycle time
-- [ ] Write a basic graphics kernel or add simple graphics hardware to demonstrate graphics functionality
-
-**For anyone curious to play around or make a contribution, feel free to put up a PR with any improvements you'd like to add 😄**
+RET                            ; end of kernel" tabindex="0" role="button">
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
+    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
+    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+</svg>
+    </clipboard-copy>
+  </div></div>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">模拟</font></font></h1><a id="user-content-simulation" class="anchor" aria-label="永久链接：模拟" href="#simulation"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu 设置为模拟上述两个内核的执行。在模拟之前，您需要安装</font></font><a href="https://steveicarus.github.io/iverilog/usage/installation.html" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">iverilog</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和</font></font><a href="https://docs.cocotb.org/en/stable/install.html" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">cocotb</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">安装先决条件后，您可以使用</font></font><code>make test_matadd</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和运行内核模拟</font></font><code>make test_matmul</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">执行模拟将输出一个日志文件，</font></font><code>test/logs</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">其中包含初始数据内存状态、内核的完整执行跟踪以及最终数据内存状态。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果查看每个日志文件开头记录的初始数据内存状态，您应该看到计算的两个起始矩阵，并且在文件末尾的最终数据内存中，您还应该看到结果矩阵。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">下面是执行跟踪的示例，显示每个周期每个内核中每个线程的执行情况，包括当前指令、PC、寄存器值、状态等。</font></font></p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/adam-maj/tiny-gpu/blob/master/docs/images/trace.png"><img src="/adam-maj/tiny-gpu/raw/master/docs/images/trace.png" alt="执行跟踪" style="max-width: 100%;"></a></p>
+<p dir="auto"><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">对于任何尝试运行模拟或使用此存储库的人，</font><font style="vertical-align: inherit;">如果您遇到任何问题，请随时在</font></font><a href="https://twitter.com/majmudaradam" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Twitter上向我发送 DM - 我希望您能够运行它！</font></font></a><font style="vertical-align: inherit;"></font></strong></p>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">先进的功能</font></font></h1><a id="user-content-advanced-functionality" class="anchor" aria-label="永久链接：高级功能" href="#advanced-functionality"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为了简单起见，现代 GPU 中实现了许多附加功能，这些功能大大提高了 tiny-gpu 省略的性能和功能。我们将在本节中讨论一些最关键的功能。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">多层缓存和共享内存</font></font></h3><a id="user-content-multi-layered-cache--shared-memory" class="anchor" aria-label="永久链接：多层缓存和共享内存" href="#multi-layered-cache--shared-memory"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在现代 GPU 中，使用多个不同级别的缓存来最大限度地减少需要从全局内存访问的数据量。 tiny-gpu 在请求内存的各个计算单元和存储最近缓存数据的内存控制器之间仅实现一层缓存层。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">实施多层缓存可以将频繁访问的数据缓存到其使用位置的更本地位置（某些缓存位于各个计算核心内），从而最大限度地缩短该数据的加载时间。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">使用不同的缓存算法来最大化缓存命中——这是一个可以改进以优化内存访问的关键维度。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">此外，GPU 经常使用同一块内的线程</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">共享内存</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">来访问可用于与其他线程共享结果的单个内存空间。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内存合并</font></font></h3><a id="user-content-memory-coalescing" class="anchor" aria-label="永久链接：内存合并" href="#memory-coalescing"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">GPU 使用的另一个关键内存优化是</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内存合并。</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">并行运行的多个线程通常需要访问内存中的顺序地址（例如，一组线程访问矩阵中的相邻元素） - 但每个内存请求都是单独放入的。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">内存合并用于分析排队的内存请求，并将相邻请求合并到单个事务中，最大限度地减少寻址所花费的时间，并将所有请求放在一起。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">流水线</font></font></h3><a id="user-content-pipelining" class="anchor" aria-label="永久链接：管道化" href="#pipelining"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在tiny-gpu的控制流程中，核心等待一组线程上执行一条指令，然后开始执行下一条指令。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">现代 GPU 使用</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">流水线技术</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">一次性流式执行多个顺序指令，同时确保相互依赖的指令仍能按顺序执行。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">这有助于最大限度地提高核心内的资源利用率，因为资源在等待时不会闲置（例如：在异步内存请求期间）。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">扭曲调度</font></font></h3><a id="user-content-warp-scheduling" class="anchor" aria-label="永久链接：扭曲调度" href="#warp-scheduling"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">用于最大化课程资源利用率的另一个策略是</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">扭曲调度。</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">这种方法涉及将块分解成可以一起执行的单独批次的 thead。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">通过在一个 warp 等待时执行来自一个 warp 的指令，可以在单个内核上同时执行多个 warp。这与流水线类似，但处理来自不同线程的指令。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">分支分歧</font></font></h3><a id="user-content-branch-divergence" class="anchor" aria-label="永久链接：分支分歧" href="#branch-divergence"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">tiny-gpu 假设单个批次中的所有线程在执行每条指令后都位于同一台 PC 上，这意味着线程可以在其整个生命周期内并行执行。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">实际上，各个线程可能彼此分歧，并根据其数据分支到不同的线路。对于不同的 PC，这些线程需要分成单独的执行线，这需要管理发散的线程并注意线程何时再次聚合。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">同步与障碍</font></font></h3><a id="user-content-synchronization--barriers" class="anchor" aria-label="永久链接：同步与障碍" href="#synchronization--barriers"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">现代 GPU 的另一个核心功能是能够设置</font></font><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">障碍</font></font></strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，以便块中的线程组可以同步并等待，直到同一块中的所有其他线程都达到某个点，然后再继续执行。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">这对于线程需要彼此交换共享数据的情况非常有用，这样它们就可以确保数据已被完全处理。</font></font></p>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">下一步</font></font></h1><a id="user-content-next-steps" class="anchor" aria-label="永久链接：后续步骤" href="#next-steps"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">我想在未来进行更新以改进设计，也欢迎其他人做出贡献：</font></font></p>
+<ul class="contains-task-list">
+<li class="task-list-item"><input type="checkbox" id="" disabled="" class="task-list-item-checkbox"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">添加一个简单的指令缓存</font></font></li>
+<li class="task-list-item"><input type="checkbox" id="" disabled="" class="task-list-item-checkbox"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">构建适配器以通过 Tiny Tapeout 7 使用 GPU</font></font></li>
+<li class="task-list-item"><input type="checkbox" id="" disabled="" class="task-list-item-checkbox"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">添加基本&ZeroWidthSpace;&ZeroWidthSpace;分支分歧</font></font></li>
+<li class="task-list-item"><input type="checkbox" id="" disabled="" class="task-list-item-checkbox"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">添加基本&ZeroWidthSpace;&ZeroWidthSpace;内存合并</font></font></li>
+<li class="task-list-item"><input type="checkbox" id="" disabled="" class="task-list-item-checkbox"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">添加基本&ZeroWidthSpace;&ZeroWidthSpace;流水线</font></font></li>
+<li class="task-list-item"><input type="checkbox" id="" disabled="" class="task-list-item-checkbox"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">优化控制流程和寄存器的使用以缩短周期时间</font></font></li>
+<li class="task-list-item"><input type="checkbox" id="" disabled="" class="task-list-item-checkbox"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">编写基本图形内核或添加简单的图形硬件来演示图形功能</font></font></li>
+</ul>
+<p dir="auto"><strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">对于任何有兴趣尝试或做出贡献的人，请随时提出 PR 并包含您想要添加的任何改进 😄</font></font></strong></p>
+</article></div>
